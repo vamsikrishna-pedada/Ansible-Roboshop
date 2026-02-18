@@ -40,10 +40,10 @@
     ansible.builtin.template:
       src: nginx.conf
       dest: /etc/nginx/nginx.conf
+      backup: yes
 
   - name: resatrt nginx
     ansible.builtin.service:
       name: nginx
       state: restarted
-      args: eth0
       enabled: yes
