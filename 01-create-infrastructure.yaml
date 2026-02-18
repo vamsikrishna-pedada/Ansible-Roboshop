@@ -7,9 +7,9 @@
   connection: local
 
   vars:
-    sg_id: "sg-0e5a0cebe28ad1dfc"
-    ami_id: "ami-0220d79f3f480ecf5"
-    domain_name: "vamsea.online"
+    sg_id: "sgid"
+    ami_id: "ami"
+    domain_name: "domainname"
     env: "dev"
     
     # THE TOGGLE SWITCH: Change to "destroy" to delete everything
