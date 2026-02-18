@@ -63,7 +63,7 @@
         record: "{{ item.item }}-{{ env }}.{{ domain_name }}"
         type: A
         ttl: 1
-        value: "{{ item.instances[0].private_ip_address }}"
+        value: "{{ item.instances[0].172.31.21.5 }}"
         wait: true
         overwrite: true   # Critical Fix: Updates record if it already exists
       loop: "{{ ec2_output.results }}"
@@ -77,7 +77,7 @@
         record: "{{ item.item }}-{{ env }}.{{ domain_name }}"
         type: A
         ttl: 1
-        value: "{{ item.instances[0].public_ip_address }}"
+        value: "{{ item.instances[0].54.227.176.1 }}"
         wait: true
         overwrite: true   # Critical Fix: Updates record if it already exists
       loop: "{{ ec2_output.results }}"
