@@ -1,0 +1,109 @@
+# ==============================================================================
+# PLAY: Create EC2 Instances and Route53 DNS Records
+# Purpose: Automates the AWS infrastructure setup for the RoboShop project.
+# ==============================================================================
+- name: create ec2 and r53 records
+  hosts: localhost
+  connection: local
+
+  vars:
+    sg_id: "sg-0e5a0cebe28ad1dfc"
+    ami_id: "ami-0220d79f3f480ecf5"
+    domain_name: "vamsea.online"
+    env: "dev"
+    
+    # THE TOGGLE SWITCH: Change to "destroy" to delete everything
+    action: create
+    
+    # THE FULL LIST: All 10 microservices to be created
+    instances:
+      - mongodb
+      - catalogue
+      - redis
+      - user
+      - cart
+      - mysql
+      - shipping
+      - rabbitmq
+      - payment
+      - frontend
+
+  tasks:
+    # ==========================================================================
+    # PHASE 1: CREATE INFRASTRUCTURE (Runs only if action == "create")
+    # ==========================================================================
+    
+    # 1. Launch EC2 servers for every item in the 'instances' list
+    - name: create ec2 instance
+      amazon.aws.ec2_instance:
+        instance_type: "t3.micro"
+        security_group: "{{ sg_id }}"
+        image_id: "{{ ami_id }}"
+        name: "{{ item }}-{{ env }}"
+        tags:
+          Project: roboshop
+          Component: "{{ item }}"
+          Environment: "{{ env }}"
+          Name: "{{ item }}-{{ env }}"
+      loop: "{{ instances }}"
+      register: ec2_output
+      when: action == "create"
+
+    # 2. Print the AWS response (for debugging)
+    - name: print the output
+      ansible.builtin.debug:
+        msg: "{{ ec2_output }}"
+      when: action == "create"
+
+    # 3. Create Private DNS records (Internal communication)
+    - name: create r53 records (private)
+      amazon.aws.route53:
+        state: present
+        zone: "{{ domain_name }}"
+        record: "{{ item.item }}-{{ env }}.{{ domain_name }}"
+        type: A
+        ttl: 1
+        value: "{{ item.instances[0].private_ip_address }}"
+        wait: true
+        overwrite: true   # Critical Fix: Updates record if it already exists
+      loop: "{{ ec2_output.results }}"
+      when: action == "create"
+
+    # 4. Create Public DNS record (ONLY for Frontend to be accessible from internet)
+    - name: create r53 records (public)
+      amazon.aws.route53:
+        state: present
+        zone: "{{ domain_name }}"
+        record: "{{ item.item }}-{{ env }}.{{ domain_name }}"
+        type: A
+        ttl: 1
+        value: "{{ item.instances[0].public_ip_address }}"
+        wait: true
+        overwrite: true   # Critical Fix: Updates record if it already exists
+      loop: "{{ ec2_output.results }}"
+      when: 
+        - item.item == "frontend"
+        - action == "create"
+
+    # ==========================================================================
+    # PHASE 2: DESTROY INFRASTRUCTURE (Runs only if action == "destroy")
+    # ==========================================================================
+
+    # 5. Delete DNS records
+    - name: delete r53 records
+      amazon.aws.route53:
+        state: absent
+        zone: "{{ domain_name }}"
+        record: "{{ item }}-{{ env }}.{{ domain_name }}"
+        type: A
+        ttl: 1
+      loop: "{{ instances }}"
+      when: action == "destroy"
+
+    # 6. Terminate EC2 servers
+    - name: delete ec2 instance
+      amazon.aws.ec2_instance:
+        state: absent
+        name: "{{ item }}-{{ env }}"
+      loop: "{{ instances }}"
+      when: action == "destroy"
