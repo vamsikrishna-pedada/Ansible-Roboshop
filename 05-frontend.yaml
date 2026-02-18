@@ -53,18 +53,18 @@
         dest: /usr/share/nginx/html
         remote_src: yes
 
-    # 4. START SERVICE
-    # Manual: "systemctl enable nginx" and "systemctl restart nginx"
-    - name: start nginx
-      ansible.builtin.service:
-        name: nginx
-        state: started
-        enabled: yes
+    - name: remove default nginx
+      ansible.builtin.file:
+      state: absent
+      path: /etc/nginx/nginx.conf
 
-  # 5. HANDLERS
-  # This only runs if the config file was actually changed
-  handlers:
-    - name: restart nginx
+    - name: copy nginx.conf
+      ansible.builtin.template:
+      src: nginx.conf
+      dest: /etc/nginx/nginx.conf
+
+    - name: resatrt nginx
       ansible.builtin.service:
-        name: nginx
-        state: restarted
+      name: nginx
+      state: restarted
+      enabled: yes
