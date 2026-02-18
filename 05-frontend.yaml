@@ -2,48 +2,67 @@
   hosts: frontend
   become: yes
   tasks:
-  - name: enable nginx 1.24
-    ansible.builtin.command: dnf module enable nginx:1.24 -y
 
-  - name: install nginx
-    ansible.builtin.dnf:
-      name: nginx
-      state: present
+    - name: enable nginx 1.24 module
+      ansible.builtin.command: dnf module enable nginx:1.24 -y
 
-  - name: Remove the entire directory
-    ansible.builtin.file:
-      path: /usr/share/nginx/html
-      state: absent
+    - name: install nginx
+      ansible.builtin.dnf:
+        name: nginx
+        state: present
 
-  - name: create html directory
-    ansible.builtin.file:
-      path: /usr/share/nginx/html
-      state: directory
+    - name: remove the old html directory
+      ansible.builtin.file:
+        path: /usr/share/nginx/html
+        state: absent
 
-  - name: download frontend
-    ansible.builtin.get_url:
-      url: https://roboshop-artifacts.s3.amazonaws.com/frontend-v3.zip 
-      dest: /tmp/frontend.zip
+    - name: create html directory
+      ansible.builtin.file:
+        path: /usr/share/nginx/html
+        state: directory
 
-  - name: unarchieve frontend
-    ansible.builtin.unarchive:
-      src: /tmp/frontend.zip
-      dest: /usr/share/nginx/html
-      remote_src: yes
+    - name: download frontend
+      ansible.builtin.get_url:
+        url: https://roboshop-artifacts.s3.amazonaws.com/frontend-v3.zip
+        dest: /tmp/frontend.zip
 
-  - name: remove default nginx
-    ansible.builtin.file:
-      state: absent
-      path: /etc/nginx/nginx.conf
+    - name: unarchive frontend
+      ansible.builtin.unarchive:
+        src: /tmp/frontend.zip
+        dest: /usr/share/nginx/html
+        remote_src: yes
 
-  - name: copy nginx.conf
-    ansible.builtin.template:
-      src: nginx.conf
-      dest: /etc/nginx/nginx.conf
-      backup: yes
+    - name: backup existing nginx.conf if it exists
+      ansible.builtin.copy:
+        src: /etc/nginx/nginx.conf
+        dest: /etc/nginx/nginx.conf.bak
+        remote_src: yes
+      ignore_errors: yes
 
-  - name: resatrt nginx
-    ansible.builtin.service:
-      name: nginx
-      state: restarted
-      enabled: yes
+    - name: deploy new nginx.conf template
+      ansible.builtin.template:
+        src: nginx.conf
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: test nginx configuration
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      ignore_errors: yes
+
+    - name: fail if nginx configuration is invalid
+      ansible.builtin.fail:
+        msg: "Nginx configuration is invalid. Fix the nginx.conf template."
+      when: nginx_test.rc != 0
+
+    - name: reload systemd daemon (optional for new service)
+      ansible.builtin.command: systemctl daemon-reload
+
+    - name: restart and enable nginx service
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+        enabled: yes
+      when: nginx_test.rc == 0
