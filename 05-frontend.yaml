@@ -45,6 +45,5 @@
     ansible.builtin.service:
       name: nginx
       state: restarted
+      args: eth0
       enabled: yes
-
-  
