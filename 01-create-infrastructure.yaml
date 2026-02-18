@@ -9,7 +9,7 @@
   vars:
     sg_id: "sgid"
     ami_id: "ami"
-    domain_name: "domainname"
+    domain_name: "domain_namee"
     env: "dev"
     
     # THE TOGGLE SWITCH: Change to "destroy" to delete everything
